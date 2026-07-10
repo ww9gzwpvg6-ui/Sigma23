@@ -1,19 +1,30 @@
--- Tolhub [Ultimate Quality - Camera Aim, Air Dribble, Avatar Stealer + Rich Reach]
--- PC & Mobile Fully Optimized for Xeno Executor
+-- Tolhub [Ultimate Quality - Camera Aim, Air Dribble, Avatar Stealer]
+-- PC & Mobile Fully Optimized Version (Bypass Accessory Deleters + Reset Fixed)
+
+-- [ XENO COMPATIBILITY LAYER ] --
+if not firetouchinterest then
+    getgenv().firetouchinterest = function(p1, p2, toggle)
+        if p1 and p2 and toggle == 0 then
+            pcall(function()
+                local oldCF = p1.CFrame
+                p1.CFrame = p2.CFrame
+                task.wait()
+                p1.CFrame = oldCF
+            end)
+        end
+    end
+end
+if not setclipboard then getgenv().setclipboard = toclipboard or function(text) end end
+if not writefile then getgenv().writefile = function(name, content) end end
+if not readfile then getgenv().readfile = function(name) return "" end end
+if not isfile then getgenv().isfile = function(name) return false end end
+-- ---------------------------- --
 
 local TweenService = game:GetService("TweenService")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-local UserInputService = game:GetService("UserInputService")
-local HttpService = game:GetService("HttpService")
-
--- Xeno Compatible gethui
-local function gethuiX()
-    return (gethui and gethui()) or (Xeno and Xeno.gethui and Xeno.gethui()) or game:GetService("CoreGui")
-end
-
-local TargetGui = gethuiX()
+local TargetGui
+pcall(function() TargetGui = gethui and gethui() end)
+if not TargetGui then pcall(function() TargetGui = game:GetService("CoreGui") end) end
+if not TargetGui then TargetGui = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui") end
 
 if getgenv().TolhubLoaded then
     pcall(function()
@@ -43,8 +54,13 @@ if getgenv().TolhubLoaded then
     end)
     return
 end
-
 getgenv().TolhubLoaded = true
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
 
 local LocalPlayer = Players.LocalPlayer
 local DiscordLink = "https://discord.gg/eEzWQJAyFA"
@@ -64,9 +80,6 @@ local GlobalData = {
     CodeUsed = false
 }
 
-local LastTouchTick = 0
-
--- Xeno Compatible Config Save/Load
 local function SaveConfig()
     if writefile then
         pcall(function()
@@ -120,7 +133,7 @@ if TargetGui:FindFirstChild("Tolhub") then TargetGui.Tolhub:Destroy() end
 
 local AvatarLogEvent = Instance.new("BindableEvent")
 
--- Avatar Stealer Functions (محسن لـ Xeno)
+-- دالة نسخ السكن بالتثبيت القوي
 local function ApplyAvatar(username, isSilent)
     if not isSilent then AvatarLogEvent:Fire("Searching for user...", Color3.fromRGB(255, 255, 100)) end
     task.spawn(function()
@@ -208,6 +221,7 @@ local function ApplyAvatar(username, isSilent)
     end)
 end
 
+-- دالة الاسترجاع مع التثبيت القوي لإكسسواراتك الأصلية وتخطي حماية اللعبة
 local function ResetAvatar()
     AvatarLogEvent:Fire("Reverting to original avatar...", Color3.fromRGB(255, 255, 100))
     task.spawn(function()
@@ -230,6 +244,7 @@ local function ResetAvatar()
             end
             task.wait(0.1)
             
+            -- إعادة تركيب قبعاتك وشعرك الأصلي بنظام التلحيم القوي لحمايتها من الحذف
             for _, item in pairs(appearance:GetChildren()) do
                 if item:IsA("Accessory") or item:IsA("Hat") then
                     local handle = item:FindFirstChild("Handle")
@@ -485,6 +500,10 @@ local function CreatePage(name, index)
         LogBox.Position = UDim2.new(0, 0, 0, 115)
         LogBox.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
         Instance.new("UICorner", LogBox).CornerRadius = UDim.new(0, 8)
+        local LogStroke = Instance.new("UIStroke", LogBox)
+        LogStroke.Color = Color3.fromRGB(0, 170, 255)
+        LogStroke.Thickness = 1
+        LogStroke.Transparency = 0.5
 
         local LogLabel = Instance.new("TextLabel", LogBox)
         LogLabel.Size = UDim2.new(1, -20, 1, -10)
@@ -555,9 +574,6 @@ local function CreatePage(name, index)
         CopyDiscordBtn.MouseButton1Click:Connect(function()
             if setclipboard then
                 setclipboard(DiscordLink)
-                ShowNotification("Discord Link Copied!")
-            elseif Xeno and Xeno.setclipboard then
-                Xeno.setclipboard(DiscordLink)
                 ShowNotification("Discord Link Copied!")
             end
         end)
@@ -660,56 +676,57 @@ for i, tabName in ipairs(Tabs) do
     CreatePage(tabName, i)
 end
 
--- ===================== RICH REACH METHOD (Xeno Safe) =====================
-local function getLeg(char, humanoid, side)
-    if humanoid.RigType == Enum.HumanoidRigType.R6 then
-        return (side == 1 and char:FindFirstChild("Right Leg")) or char:FindFirstChild("Left Leg")
+-- [ نظام الريتش السريع للمراوغة (بدون كول داون + دبل تاتش) ] --
+local function GetLeg(char, hum, pref)
+    if hum.RigType == Enum.HumanoidRigType.R6 then
+        return pref == 1 and char:FindFirstChild("Right Leg") or char:FindFirstChild("Left Leg")
     else
-        return (side == 1 and char:FindFirstChild("RightLowerLeg")) or char:FindFirstChild("LeftLowerLeg")
+        return pref == 1 and char:FindFirstChild("RightLowerLeg") or char:FindFirstChild("LeftLowerLeg")
     end
 end
 
 RunService.RenderStepped:Connect(function()
     local char = LocalPlayer.Character
     if not char then return end
-    local humanoid = char:FindFirstChildOfClass("Humanoid")
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not root then return end
+    
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hum or not hrp then return end
 
-    local tpsSystem = workspace:FindFirstChild("TPSSystem")
-    local ball = tpsSystem and tpsSystem:FindFirstChild("TPS")
-    if not ball then return end
+    local tpSystem = workspace:FindFirstChild("TPSSystem")
+    local tps = tpSystem and tpSystem:FindFirstChild("TPS")
+    if not tps then return end
 
-    local appearance = Lighting:FindFirstChild(LocalPlayer.Name)
-    local preferredFoot = appearance and appearance:FindFirstChild("PreferredFoot")
-    if not preferredFoot then return end
+    local prefFootFolder = Lighting:FindFirstChild(LocalPlayer.Name)
+    local prefFoot = prefFootFolder and prefFootFolder:FindFirstChild("PreferredFoot")
+    if not prefFoot then return end
 
-    local leg = getLeg(char, humanoid, preferredFoot.Value)
-    if not leg then return end
+    local foot = GetLeg(char, hum, prefFoot.Value)
+    if not foot then return end
 
-    local distance = (root.Position - ball.Position).Magnitude
-    local power = 0
-    local active = false
+    local mag = (hrp.Position - tps.Position).Magnitude
+    local ballOffset = hrp.CFrame:ToObjectSpace(tps.CFrame).Position
+    
+    local forceTake = false
 
-    if Configs.Front.Enabled then 
-        power = math.max(power, Configs.Front.Value)
-        active = true 
+    -- فحص زوايا واسع ومرن يمنع ضياع الكرة عند التفاف الكاميرا يمين/يسار بشكل سريع
+    if Configs.Front.Enabled and ballOffset.Z <= 1.5 and mag <= Configs.Front.Value then
+        forceTake = true
+    elseif Configs.Back.Enabled and ballOffset.Z >= -1.5 and mag <= Configs.Back.Value then
+        forceTake = true
+    elseif Configs.Side.Enabled and mag <= Configs.Side.Value then
+        forceTake = true
+    elseif Configs.Head.Enabled and mag <= Configs.Head.Value then
+        forceTake = true
     end
-    if Configs.Side.Enabled then 
-        power = math.max(power, Configs.Side.Value)
-        active = true 
-    end
-    if Configs.Back.Enabled then 
-        power = math.max(power, Configs.Back.Value)
-        active = true 
-    end
 
-    if active and distance <= power + 10 and (tick() - LastTouchTick > 0.04) then
-        LastTouchTick = tick()
-        firetouchinterest(leg, ball, 0)
-        task.wait(0.015)
-        firetouchinterest(leg, ball, 1)
+    -- تنفيذ السحب الفوري المزدوج (بدون أي تأخير زمني) لضمان سرعة الاستجابة مع الشوت والمراوغة
+    if forceTake then
+        firetouchinterest(foot, tps, 0)
+        firetouchinterest(foot, tps, 1)
+        
+        -- إرسال لمسة ثانية فورية لضمان أخذ الكرة لاتجاه اللاعب الجديد دون تقطيع
+        firetouchinterest(foot, tps, 0)
+        firetouchinterest(foot, tps, 1)
     end
 end)
-
-print("✅ Tolhub Xeno Fully Optimized Loaded Successfully!")
