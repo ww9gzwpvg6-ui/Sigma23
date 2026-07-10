@@ -1,0 +1,715 @@
+-- Tolhub [Ultimate Quality - Camera Aim, Air Dribble, Avatar Stealer + Rich Reach]
+-- PC & Mobile Fully Optimized for Xeno Executor
+
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+
+-- Xeno Compatible gethui
+local function gethuiX()
+    return (gethui and gethui()) or (Xeno and Xeno.gethui and Xeno.gethui()) or game:GetService("CoreGui")
+end
+
+local TargetGui = gethuiX()
+
+if getgenv().TolhubLoaded then
+    pcall(function()
+        local AlertGui = TargetGui:FindFirstChild("Tolhub_Alerts") or Instance.new("ScreenGui", TargetGui)
+        AlertGui.Name = "Tolhub_Alerts"
+        local NotifFrame = Instance.new("Frame", AlertGui)
+        NotifFrame.Size = UDim2.new(0, 220, 0, 40)
+        NotifFrame.Position = UDim2.new(1, 10, 0, 20)
+        NotifFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+        Instance.new("UICorner", NotifFrame).CornerRadius = UDim.new(0, 8)
+        local NotifStroke = Instance.new("UIStroke", NotifFrame)
+        NotifStroke.Color = Color3.fromRGB(255, 80, 80)
+        NotifStroke.Thickness = 1
+        local NotifText = Instance.new("TextLabel", NotifFrame)
+        NotifText.Size = UDim2.new(1, 0, 1, 0)
+        NotifText.BackgroundTransparency = 1
+        NotifText.Font = Enum.Font.GothamBold
+        NotifText.TextSize = 12
+        NotifText.TextColor3 = Color3.fromRGB(255, 80, 80)
+        NotifText.Text = "Tolhub is already running!"
+        TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(1, -240, 0, 20)}):Play()
+        task.delay(3, function()
+            TweenService:Create(NotifFrame, TweenInfo.new(0.3), {Position = UDim2.new(1, 10, 0, 20)}):Play()
+            task.wait(0.3)
+            NotifFrame:Destroy()
+        end)
+    end)
+    return
+end
+
+getgenv().TolhubLoaded = true
+
+local LocalPlayer = Players.LocalPlayer
+local DiscordLink = "https://discord.gg/eEzWQJAyFA"
+
+local Configs = {
+    Front = {Enabled = false, Value = 0},
+    Side  = {Enabled = false, Value = 0},
+    Back  = {Enabled = false, Value = 0},
+    Head  = {Enabled = false, Value = 0},
+    ["Air Dribble"] = {Enabled = false, Value = 20},
+    Avatar = {Auto = false, Username = ""} 
+}
+
+local GlobalData = {
+    MaxLimit = 15,
+    LimitEndTime = 0,
+    CodeUsed = false
+}
+
+local LastTouchTick = 0
+
+-- Xeno Compatible Config Save/Load
+local function SaveConfig()
+    if writefile then
+        pcall(function()
+            local ConfigsToSave = {}
+            for k, v in pairs(Configs) do
+                if k ~= "Air Dribble" then ConfigsToSave[k] = v end
+            end
+            local dataToSave = { Configs = ConfigsToSave, GlobalData = GlobalData }
+            writefile("Tolhub_Data_V5.json", HttpService:JSONEncode(dataToSave))
+        end)
+    end
+end
+
+local function LoadConfig()
+    if readfile and isfile and isfile("Tolhub_Data_V5.json") then
+        pcall(function()
+            local decoded = HttpService:JSONDecode(readfile("Tolhub_Data_V5.json"))
+            if decoded.Configs then
+                for k, v in pairs(decoded.Configs) do
+                    if Configs[k] and k ~= "Air Dribble" then
+                        if k == "Avatar" then
+                            Configs.Avatar.Auto = v.Auto or false
+                            Configs.Avatar.Username = v.Username or ""
+                        else
+                            Configs[k].Enabled = v.Enabled
+                            Configs[k].Value = v.Value
+                        end
+                    end
+                end
+            end
+            if decoded.GlobalData then
+                GlobalData.MaxLimit = decoded.GlobalData.MaxLimit
+                GlobalData.LimitEndTime = decoded.GlobalData.LimitEndTime
+                GlobalData.CodeUsed = decoded.GlobalData.CodeUsed
+            end
+        end)
+    end
+end
+
+LoadConfig()
+
+if GlobalData.MaxLimit == 17 and os.time() > GlobalData.LimitEndTime then
+    GlobalData.MaxLimit = 15
+    for k, v in pairs(Configs) do
+        if k ~= "Air Dribble" and k ~= "Avatar" and v.Value > 15 then v.Value = 15 end
+    end
+    SaveConfig()
+end
+
+if TargetGui:FindFirstChild("Tolhub") then TargetGui.Tolhub:Destroy() end
+
+local AvatarLogEvent = Instance.new("BindableEvent")
+
+-- Avatar Stealer Functions (محسن لـ Xeno)
+local function ApplyAvatar(username, isSilent)
+    if not isSilent then AvatarLogEvent:Fire("Searching for user...", Color3.fromRGB(255, 255, 100)) end
+    task.spawn(function()
+        local success, userId = pcall(function()
+            return Players:GetUserIdFromNameAsync(username)
+        end)
+        if not success or not userId then
+            if not isSilent then AvatarLogEvent:Fire("Error: Player not found!", Color3.fromRGB(255, 100, 100)) end
+            return
+        end
+        
+        if not isSilent then AvatarLogEvent:Fire("Downloading avatar assets...", Color3.fromRGB(255, 255, 100)) end
+        
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        
+        local appearanceSuccess, appearance = pcall(function()
+            return Players:GetCharacterAppearanceAsync(userId)
+        end)
+        
+        if not appearanceSuccess or not appearance then
+            if not isSilent then AvatarLogEvent:Fire("Error: Failed to load appearance!", Color3.fromRGB(255, 100, 100)) end
+            return
+        end
+        
+        if not isSilent then AvatarLogEvent:Fire("Applying and welding items...", Color3.fromRGB(255, 255, 100)) end
+        
+        for _, v in pairs(char:GetChildren()) do
+            if v:IsA("Accessory") or v:IsA("Hat") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("CharacterMesh") or v:IsA("ShirtGraphic") or v:IsA("BodyColors") or v.Name:match("^CustomHat_") then
+                v:Destroy()
+            end
+            if v:IsA("Part") and v.Name == "Head" then
+                local face = v:FindFirstChildOfClass("Decal")
+                if face then face:Destroy() end
+            end
+        end
+        
+        task.wait(0.1)
+        
+        for _, item in pairs(appearance:GetChildren()) do
+            if item:IsA("Accessory") or item:IsA("Hat") then
+                local handle = item:FindFirstChild("Handle")
+                if handle then
+                    local clonedHandle = handle:Clone()
+                    clonedHandle.Name = "CustomHat_" .. item.Name
+                    clonedHandle.CanCollide = false
+                    clonedHandle.Massless = true
+                    clonedHandle.Parent = char
+                    
+                    local att = handle:FindFirstChildOfClass("Attachment")
+                    local charAtt = nil
+                    if att then
+                        for _, v in pairs(char:GetDescendants()) do
+                            if v:IsA("Attachment") and v.Name == att.Name then
+                                charAtt = v
+                                break
+                            end
+                        end
+                    end
+                    
+                    local weld = Instance.new("Weld")
+                    weld.Name = "ForceWeld"
+                    weld.Part1 = clonedHandle
+                    if charAtt then
+                        weld.Part0 = charAtt.Parent
+                        weld.C0 = charAtt.CFrame
+                        weld.C1 = att.CFrame
+                    else
+                        local head = char:FindFirstChild("Head")
+                        if head then
+                            weld.Part0 = head
+                            weld.C0 = CFrame.new(0, 0.5, 0)
+                        end
+                    end
+                    weld.Parent = clonedHandle
+                end
+            elseif item:IsA("Shirt") or item:IsA("Pants") or item:IsA("CharacterMesh") or item:IsA("BodyColors") or item:IsA("ShirtGraphic") then
+                item.Parent = char
+            elseif item:IsA("Decal") and item.Name == "face" then
+                local head = char:FindFirstChild("Head")
+                if head then item.Parent = head end
+            end
+        end
+        
+        if not isSilent then AvatarLogEvent:Fire("Success: Avatar forcefully applied locally!", Color3.fromRGB(0, 255, 120)) end
+    end)
+end
+
+local function ResetAvatar()
+    AvatarLogEvent:Fire("Reverting to original avatar...", Color3.fromRGB(255, 255, 100))
+    task.spawn(function()
+        local char = LocalPlayer.Character
+        if not char then return end
+        
+        local success, appearance = pcall(function()
+            return Players:GetCharacterAppearanceAsync(LocalPlayer.UserId)
+        end)
+        
+        if success and appearance then
+            for _, v in pairs(char:GetChildren()) do
+                if v:IsA("Accessory") or v:IsA("Hat") or v:IsA("Shirt") or v:IsA("Pants") or v:IsA("CharacterMesh") or v:IsA("ShirtGraphic") or v:IsA("BodyColors") or v.Name:match("^CustomHat_") then
+                    v:Destroy()
+                end
+                if v:IsA("Part") and v.Name == "Head" then
+                    local face = v:FindFirstChildOfClass("Decal")
+                    if face then face:Destroy() end
+                end
+            end
+            task.wait(0.1)
+            
+            for _, item in pairs(appearance:GetChildren()) do
+                if item:IsA("Accessory") or item:IsA("Hat") then
+                    local handle = item:FindFirstChild("Handle")
+                    if handle then
+                        local clonedHandle = handle:Clone()
+                        clonedHandle.Name = "CustomHat_" .. item.Name
+                        clonedHandle.CanCollide = false
+                        clonedHandle.Massless = true
+                        clonedHandle.Parent = char
+                        
+                        local att = handle:FindFirstChildOfClass("Attachment")
+                        local charAtt = nil
+                        if att then
+                            for _, v in pairs(char:GetDescendants()) do
+                                if v:IsA("Attachment") and v.Name == att.Name then
+                                    charAtt = v
+                                    break
+                                end
+                            end
+                        end
+                        
+                        local weld = Instance.new("Weld")
+                        weld.Name = "ForceWeld"
+                        weld.Part1 = clonedHandle
+                        if charAtt then
+                            weld.Part0 = charAtt.Parent
+                            weld.C0 = charAtt.CFrame
+                            weld.C1 = att.CFrame
+                        else
+                            local head = char:FindFirstChild("Head")
+                            if head then
+                                weld.Part0 = head
+                                weld.C0 = CFrame.new(0, 0.5, 0)
+                            end
+                        end
+                        weld.Parent = clonedHandle
+                    end
+                elseif item:IsA("Shirt") or item:IsA("Pants") or item:IsA("CharacterMesh") or item:IsA("BodyColors") or item:IsA("ShirtGraphic") then
+                    item.Parent = char
+                elseif item:IsA("Decal") and item.Name == "face" then
+                    local head = char:FindFirstChild("Head")
+                    if head then item.Parent = head end
+                end
+            end
+            AvatarLogEvent:Fire("Success: Reverted to normal!", Color3.fromRGB(0, 255, 120))
+        else
+            AvatarLogEvent:Fire("Error: Failed to revert!", Color3.fromRGB(255, 100, 100))
+        end
+    end)
+end
+
+LocalPlayer.CharacterAdded:Connect(function(newChar)
+    if Configs.Avatar.Auto and Configs.Avatar.Username ~= "" then
+        newChar:WaitForChild("Humanoid", 5)
+        task.wait(1) 
+        ApplyAvatar(Configs.Avatar.Username, true)
+    end
+end)
+
+local ScreenGui = Instance.new("ScreenGui", TargetGui)
+ScreenGui.Name = "Tolhub"
+ScreenGui.ResetOnSpawn = false
+
+local function SetupDraggableButton(btn, onClick)
+    local Dragging, DragInput, DragStart, StartPosition = false, nil, Vector3.new(), UDim2.new()
+    local Moved = false
+    btn.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            Dragging = true; Moved = false; DragInput = input; DragStart = input.Position; StartPosition = btn.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == DragInput and Dragging then
+            local Delta = input.Position - DragStart
+            if Delta.Magnitude > 5 then Moved = true end
+            btn.Position = UDim2.new(StartPosition.X.Scale, StartPosition.X.Offset + Delta.X, StartPosition.Y.Scale, StartPosition.Y.Offset + Delta.Y)
+        end
+    end)
+    btn.InputEnded:Connect(function(input)
+        if input == DragInput then
+            Dragging = false; DragInput = nil
+            if not Moved and onClick then onClick() end
+        end
+    end)
+end
+
+local ToggleButton = Instance.new("TextButton", ScreenGui)
+ToggleButton.Size = UDim2.new(0, 50, 0, 50)
+ToggleButton.Position = UDim2.new(0, 10, 0, 10)
+ToggleButton.Text = "SZ"
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 16
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+ToggleButton.BackgroundTransparency = 0.2
+Instance.new("UICorner", ToggleButton).CornerRadius = UDim.new(0, 12)
+local ToggleStroke = Instance.new("UIStroke", ToggleButton)
+ToggleStroke.Thickness = 1
+ToggleStroke.Color = Color3.fromRGB(0, 170, 255)
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 440, 0, 260)
+MainFrame.Position = UDim2.new(0.5, -220, 0.5, -130)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MainFrame.BackgroundTransparency = 0.25
+MainFrame.Visible = false
+MainFrame.Active = true
+
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Thickness = 1.5
+UIStroke.Color = Color3.fromRGB(0, 170, 255)
+UIStroke.Transparency = 0.4
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 16)
+
+local function OpenUI()
+    MainFrame.Position = UDim2.new(0.5, -220, -0.5, -130)
+    MainFrame.Visible = true
+    TweenService:Create(MainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -220, 0.5, -130)}):Play()
+end
+local function CloseUI()
+    TweenService:Create(MainFrame, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -220, -1.5, -130)}):Play()
+    task.delay(0.4, function() MainFrame.Visible = false end)
+end
+
+SetupDraggableButton(ToggleButton, function() if MainFrame.Visible then CloseUI() else OpenUI() end end)
+
+local Sidebar = Instance.new("ScrollingFrame", MainFrame)
+Sidebar.Size = UDim2.new(0, 110, 1, -20)
+Sidebar.Position = UDim2.new(0, 10, 0, 10)
+Sidebar.BackgroundTransparency = 1
+Sidebar.CanvasSize = UDim2.new(0, 0, 0, 380)
+Sidebar.ScrollBarThickness = 0
+
+local SidebarLayout = Instance.new("UIListLayout", Sidebar)
+SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
+SidebarLayout.Padding = UDim.new(0, 5)
+
+local PageContainer = Instance.new("Frame", MainFrame)
+PageContainer.Size = UDim2.new(1, -140, 1, -20)
+PageContainer.Position = UDim2.new(0, 130, 0, 10)
+PageContainer.BackgroundTransparency = 1
+
+local Tabs = {"Main", "Front", "Side", "Back", "Head", "Air Dribble", "Avatar", "Info"}
+local Pages = {}
+local TabButtons = {}
+
+local function ShowNotification(msg)
+    local NotifFrame = Instance.new("Frame", ScreenGui)
+    NotifFrame.Size = UDim2.new(0, 220, 0, 40)
+    NotifFrame.Position = UDim2.new(1, 10, 0, 20)
+    NotifFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+    Instance.new("UICorner", NotifFrame).CornerRadius = UDim.new(0, 8)
+    local NotifStroke = Instance.new("UIStroke", NotifFrame)
+    NotifStroke.Color = Color3.fromRGB(0, 255, 150)
+    NotifStroke.Thickness = 1
+    local NotifText = Instance.new("TextLabel", NotifFrame)
+    NotifText.Size = UDim2.new(1, 0, 1, 0)
+    NotifText.BackgroundTransparency = 1
+    NotifText.Font = Enum.Font.GothamBold
+    NotifText.TextSize = 12
+    NotifText.TextColor3 = Color3.fromRGB(0, 255, 150)
+    NotifText.Text = msg
+    TweenService:Create(NotifFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(1, -240, 0, 20)}):Play()
+    task.delay(2.5, function()
+        TweenService:Create(NotifFrame, TweenInfo.new(0.3), {Position = UDim2.new(1, 10, 0, 20)}):Play()
+        task.wait(0.3)
+        NotifFrame:Destroy()
+    end)
+end
+
+local function CreatePage(name, index)
+    local Btn = Instance.new("TextButton", Sidebar)
+    Btn.Size = UDim2.new(1, -5, 0, 35)
+    Btn.LayoutOrder = index
+    Btn.Text = name
+    Btn.Font = Enum.Font.GothamBold
+    Btn.TextSize = 12
+    Btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+    Btn.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+    Btn.BackgroundTransparency = 0.4
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+    TabButtons[name] = Btn
+
+    local Page = Instance.new("Frame", PageContainer)
+    Page.Size = UDim2.new(1, 0, 1, 0)
+    Page.BackgroundTransparency = 1
+    Page.Visible = (index == 1)
+    Pages[name] = Page
+
+    local TitleLabel = Instance.new("TextLabel", Page)
+    TitleLabel.Size = UDim2.new(0, 60, 0, 20)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextSize = 15
+    TitleLabel.TextColor3 = Color3.fromRGB(0, 170, 255)
+    TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    TitleLabel.Text = "Tolhub"
+
+    if name == "Main" then
+        local WelcomeLabel = Instance.new("TextLabel", Page)
+        WelcomeLabel.Size = UDim2.new(1, 0, 1, -40)
+        WelcomeLabel.Position = UDim2.new(0, 0, 0, 30)
+        WelcomeLabel.BackgroundTransparency = 1
+        WelcomeLabel.Font = Enum.Font.GothamBold
+        WelcomeLabel.TextSize = 22
+        WelcomeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        WelcomeLabel.Text = "Welcome to Tolhub"
+
+    elseif name == "Avatar" then
+        local TargetBox = Instance.new("TextBox", Page)
+        TargetBox.Size = UDim2.new(0.95, 0, 0, 35)
+        TargetBox.Position = UDim2.new(0, 0, 0, 25)
+        TargetBox.PlaceholderText = "Enter Username..." 
+        TargetBox.Text = Configs.Avatar.Username
+        TargetBox.Font = Enum.Font.Gotham
+        TargetBox.TextSize = 13
+        TargetBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TargetBox.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+        Instance.new("UICorner", TargetBox).CornerRadius = UDim.new(0, 8)
+
+        local AutoBtn = Instance.new("TextButton", Page)
+        AutoBtn.Size = UDim2.new(0.3, 0, 0, 35)
+        AutoBtn.Position = UDim2.new(0, 0, 0, 70)
+        AutoBtn.Text = "Auto: " .. (Configs.Avatar.Auto and "ON" or "OFF") 
+        AutoBtn.Font = Enum.Font.GothamBold
+        AutoBtn.TextSize = 12
+        AutoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        AutoBtn.BackgroundColor3 = Configs.Avatar.Auto and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(40, 40, 45)
+        Instance.new("UICorner", AutoBtn).CornerRadius = UDim.new(0, 8)
+
+        local StealBtn = Instance.new("TextButton", Page)
+        StealBtn.Size = UDim2.new(0.3, 0, 0, 35)
+        StealBtn.Position = UDim2.new(0.325, 0, 0, 70)
+        StealBtn.Text = "Steal" 
+        StealBtn.Font = Enum.Font.GothamBold
+        StealBtn.TextSize = 12
+        StealBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        StealBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+        Instance.new("UICorner", StealBtn).CornerRadius = UDim.new(0, 8)
+
+        local ResetBtn = Instance.new("TextButton", Page)
+        ResetBtn.Size = UDim2.new(0.3, 0, 0, 35)
+        ResetBtn.Position = UDim2.new(0.65, 0, 0, 70)
+        ResetBtn.Text = "Reset" 
+        ResetBtn.Font = Enum.Font.GothamBold
+        ResetBtn.TextSize = 12
+        ResetBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ResetBtn.BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+        Instance.new("UICorner", ResetBtn).CornerRadius = UDim.new(0, 8)
+
+        local LogBox = Instance.new("Frame", Page)
+        LogBox.Size = UDim2.new(0.95, 0, 0, 90)
+        LogBox.Position = UDim2.new(0, 0, 0, 115)
+        LogBox.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+        Instance.new("UICorner", LogBox).CornerRadius = UDim.new(0, 8)
+
+        local LogLabel = Instance.new("TextLabel", LogBox)
+        LogLabel.Size = UDim2.new(1, -20, 1, -10)
+        LogLabel.Position = UDim2.new(0, 10, 0, 5)
+        LogLabel.BackgroundTransparency = 1
+        LogLabel.Font = Enum.Font.Gotham
+        LogLabel.TextSize = 13
+        LogLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        LogLabel.TextXAlignment = Enum.TextXAlignment.Left
+        LogLabel.TextYAlignment = Enum.TextYAlignment.Top
+        LogLabel.TextWrapped = true
+        LogLabel.Text = "Log Status:\nWaiting for action..." 
+
+        AvatarLogEvent.Event:Connect(function(msg, color)
+            LogLabel.Text = "Log Status:\n" .. msg
+            LogLabel.TextColor3 = color
+        end)
+
+        TargetBox.FocusLost:Connect(function()
+            Configs.Avatar.Username = TargetBox.Text
+            SaveConfig()
+        end)
+
+        AutoBtn.MouseButton1Click:Connect(function()
+            Configs.Avatar.Auto = not Configs.Avatar.Auto
+            AutoBtn.Text = "Auto: " .. (Configs.Avatar.Auto and "ON" or "OFF")
+            AutoBtn.BackgroundColor3 = Configs.Avatar.Auto and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(40, 40, 45)
+            SaveConfig()
+            if Configs.Avatar.Auto and Configs.Avatar.Username ~= "" then
+                ApplyAvatar(Configs.Avatar.Username)
+            end
+        end)
+
+        StealBtn.MouseButton1Click:Connect(function()
+            if TargetBox.Text ~= "" then
+                Configs.Avatar.Username = TargetBox.Text
+                SaveConfig()
+                ApplyAvatar(TargetBox.Text)
+            else
+                AvatarLogEvent:Fire("Please enter a username!", Color3.fromRGB(255, 100, 100))
+            end
+        end)
+
+        ResetBtn.MouseButton1Click:Connect(function()
+            ResetAvatar()
+        end)
+
+    elseif name == "Info" then
+        local InfoDesc = Instance.new("TextLabel", Page)
+        InfoDesc.Size = UDim2.new(1, 0, 0, 40)
+        InfoDesc.Position = UDim2.new(0, 0, 0, 30)
+        InfoDesc.BackgroundTransparency = 1
+        InfoDesc.Font = Enum.Font.Gotham
+        InfoDesc.TextSize = 13
+        InfoDesc.TextColor3 = Color3.fromRGB(200, 200, 200)
+        InfoDesc.Text = "Welcome to Tolhub Script.\nJoin our community on Discord!"
+
+        local CopyDiscordBtn = Instance.new("TextButton", Page)
+        CopyDiscordBtn.Size = UDim2.new(0.95, 0, 0, 40)
+        CopyDiscordBtn.Position = UDim2.new(0, 0, 0, 80)
+        CopyDiscordBtn.Text = "🔗 Copy Discord Link"
+        CopyDiscordBtn.Font = Enum.Font.GothamBold
+        CopyDiscordBtn.TextSize = 13
+        CopyDiscordBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        CopyDiscordBtn.BackgroundColor3 = Color3.fromRGB(88, 101, 242)
+        Instance.new("UICorner", CopyDiscordBtn).CornerRadius = UDim.new(0, 8)
+
+        CopyDiscordBtn.MouseButton1Click:Connect(function()
+            if setclipboard then
+                setclipboard(DiscordLink)
+                ShowNotification("Discord Link Copied!")
+            elseif Xeno and Xeno.setclipboard then
+                Xeno.setclipboard(DiscordLink)
+                ShowNotification("Discord Link Copied!")
+            end
+        end)
+
+    else
+        local InfoLabel = Instance.new("TextLabel", Page)
+        InfoLabel.Size = UDim2.new(1, 0, 0, 20)
+        InfoLabel.Position = UDim2.new(0, 0, 0, 25)
+        InfoLabel.BackgroundTransparency = 1
+        InfoLabel.Font = Enum.Font.Gotham
+        InfoLabel.TextSize = 13
+        InfoLabel.TextColor3 = Configs[name].Enabled and Color3.fromRGB(0, 255, 120) or Color3.fromRGB(255, 100, 100)
+        
+        local function UpdateText()
+            local displayVal = Configs[name].Value
+            InfoLabel.Text = name .. (name == "Air Dribble" and " Size: " or ": ") .. displayVal .. " | " .. (Configs[name].Enabled and "ON" or "OFF")
+        end
+        UpdateText()
+
+        local ToggleBtn = Instance.new("TextButton", Page)
+        ToggleBtn.Size = UDim2.new(0.95, 0, 0, 40)
+        ToggleBtn.Position = UDim2.new(0, 0, 0, 55)
+        ToggleBtn.Text = name .. ": " .. (Configs[name].Enabled and "ENABLED" or "DISABLED")
+        ToggleBtn.Font = Enum.Font.GothamBold
+        ToggleBtn.TextSize = 13
+        ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        ToggleBtn.BackgroundColor3 = Configs[name].Enabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(40, 40, 45)
+        ToggleBtn.BackgroundTransparency = 0.3
+        Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 8)
+
+        ToggleBtn.MouseButton1Click:Connect(function()
+            Configs[name].Enabled = not Configs[name].Enabled
+            ToggleBtn.Text = name .. ": " .. (Configs[name].Enabled and "ENABLED" or "DISABLED")
+            ToggleBtn.BackgroundColor3 = Configs[name].Enabled and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(40, 40, 45)
+            InfoLabel.TextColor3 = Configs[name].Enabled and Color3.fromRGB(0, 255, 120) or Color3.fromRGB(255, 100, 100)
+            UpdateText()
+            SaveConfig()
+        end)
+
+        local ControlFrame = Instance.new("Frame", Page)
+        ControlFrame.Position = UDim2.new(0, 0, 0, 115)
+        ControlFrame.Size = UDim2.new(0.95, 0, 0, 45)
+        ControlFrame.BackgroundTransparency = 1
+
+        local MinusBtn = Instance.new("TextButton", ControlFrame)
+        MinusBtn.Size = UDim2.new(0, 55, 0, 45)
+        MinusBtn.Position = UDim2.new(0.5, -60, 0, 0)
+        MinusBtn.Text = "-"
+        MinusBtn.Font = Enum.Font.GothamBold
+        MinusBtn.TextSize = 26
+        MinusBtn.TextColor3 = Color3.fromRGB(20, 20, 20)
+        MinusBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        Instance.new("UICorner", MinusBtn).CornerRadius = UDim.new(0, 10)
+
+        local PlusBtn = Instance.new("TextButton", ControlFrame)
+        PlusBtn.Size = UDim2.new(0, 55, 0, 45)
+        PlusBtn.Position = UDim2.new(0.5, 5, 0, 0)
+        PlusBtn.Text = "+"
+        PlusBtn.Font = Enum.Font.GothamBold
+        PlusBtn.TextSize = 26
+        PlusBtn.TextColor3 = Color3.fromRGB(20, 20, 20)
+        PlusBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        Instance.new("UICorner", PlusBtn).CornerRadius = UDim.new(0, 10)
+
+        MinusBtn.MouseButton1Click:Connect(function()
+            if Configs[name].Value > 0 then
+                Configs[name].Value = Configs[name].Value - 1
+                UpdateText()
+                SaveConfig()
+            end
+        end)
+
+        PlusBtn.MouseButton1Click:Connect(function()
+            if Configs[name].Value < GlobalData.MaxLimit then
+                Configs[name].Value = Configs[name].Value + 1
+                UpdateText()
+                SaveConfig()
+            end
+        end)
+    end
+
+    Btn.MouseButton1Click:Connect(function()
+        for _, p in pairs(Pages) do p.Visible = false end
+        for _, b in pairs(TabButtons) do 
+            b.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+            b.TextColor3 = Color3.fromRGB(180, 180, 180) 
+        end
+        Page.Visible = true
+        Btn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+        Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end)
+    
+    if index == 1 then
+        Btn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+        Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    end
+end
+
+for i, tabName in ipairs(Tabs) do
+    CreatePage(tabName, i)
+end
+
+-- ===================== RICH REACH METHOD (Xeno Safe) =====================
+local function getLeg(char, humanoid, side)
+    if humanoid.RigType == Enum.HumanoidRigType.R6 then
+        return (side == 1 and char:FindFirstChild("Right Leg")) or char:FindFirstChild("Left Leg")
+    else
+        return (side == 1 and char:FindFirstChild("RightLowerLeg")) or char:FindFirstChild("LeftLowerLeg")
+    end
+end
+
+RunService.RenderStepped:Connect(function()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not humanoid or not root then return end
+
+    local tpsSystem = workspace:FindFirstChild("TPSSystem")
+    local ball = tpsSystem and tpsSystem:FindFirstChild("TPS")
+    if not ball then return end
+
+    local appearance = Lighting:FindFirstChild(LocalPlayer.Name)
+    local preferredFoot = appearance and appearance:FindFirstChild("PreferredFoot")
+    if not preferredFoot then return end
+
+    local leg = getLeg(char, humanoid, preferredFoot.Value)
+    if not leg then return end
+
+    local distance = (root.Position - ball.Position).Magnitude
+    local power = 0
+    local active = false
+
+    if Configs.Front.Enabled then 
+        power = math.max(power, Configs.Front.Value)
+        active = true 
+    end
+    if Configs.Side.Enabled then 
+        power = math.max(power, Configs.Side.Value)
+        active = true 
+    end
+    if Configs.Back.Enabled then 
+        power = math.max(power, Configs.Back.Value)
+        active = true 
+    end
+
+    if active and distance <= power + 10 and (tick() - LastTouchTick > 0.04) then
+        LastTouchTick = tick()
+        firetouchinterest(leg, ball, 0)
+        task.wait(0.015)
+        firetouchinterest(leg, ball, 1)
+    end
+end)
+
+print("✅ Tolhub Xeno Fully Optimized Loaded Successfully!")
